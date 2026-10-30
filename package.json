@@ -1,0 +1,41 @@
+{
+  "bin": {
+    "tododebt": "dist/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1",
+    "zod": "^3"
+  },
+  "description": "TODO, FIXME, HACK, and XXX inventory for a repo: every marker with file, line, and text, aged by git blame when the repo has history, grouped by marker and by file so debt is a list with owners, not a vibe.",
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "server.json"
+  ],
+  "homepage": "https://github.com/CloudCorpRecords/tododebt#readme",
+  "license": "MIT",
+  "mcpName": "io.github.CloudCorpRecords/tododebt",
+  "name": "@reneturcios/tododebt",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CloudCorpRecords/tododebt.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}
