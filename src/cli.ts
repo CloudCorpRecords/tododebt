@@ -2,52 +2,47 @@
 /**
  * tododebt CLI.
  *
- *   tododebt scan [target] [--json]
+ *   tododebt scan <file> [more files...] [--markers TODO,FIXME,HACK]
  *   tododebt mcp
- *   tododebt --version
  *
- * Exit codes: 0 when the verdict is NONE, 1 for any other verdict,
- * 2 usage error, 141 when the reader closed the output pipe early
- * (the shell-visible equivalent of death by SIGPIPE). The emit contract
- * follows FACTORY-NOTES.md: one flush-aware write, exitCode never
- * process.exit on report paths.
+ * The CLI reads the named files from disk and hands their
+ * contents to the scanner; the core itself does no IO. Pure
+ * local computation: no network, no configuration. Argument
+ * validation happens before any file is read.
+ * Exit codes: 0 success, 1 runtime error (including an
+ * unreadable file), 2 usage error.
  */
-import { runCheck, renderReport, CLEAN_VERDICT, VERSION } from "./core.js";
-
-function exitBrokenPipe(): never {
-  process.exit(141);
-}
-
-process.stdout.on("error", (err: NodeJS.ErrnoException) => {
-  if (err.code === "EPIPE") exitBrokenPipe();
-  throw err;
-});
-
-async function emit(text: string, code: number): Promise<void> {
-  process.exitCode = code;
-  await new Promise<void>((resolve, reject) => {
-    process.stdout.write(`${text}\n`, (err) => {
-      if (!err) {
-        resolve();
-        return;
-      }
-      if ((err as NodeJS.ErrnoException).code === "EPIPE") exitBrokenPipe();
-      reject(err);
-    });
-  });
-}
+import { readFileSync } from "node:fs";
+import { formatPayload, scanTodos, VERSION } from "./tododebt.js";
 
 function usage(): never {
   console.error(`Usage:
-  tododebt scan [target] [--json]
+  tododebt scan <file> [more files...] [--markers TODO,FIXME,HACK]
   tododebt mcp
   tododebt --version`);
   process.exit(2);
 }
 
+function flag(rest: string[], name: string): string | undefined {
+  const i = rest.indexOf(name);
+  return i >= 0 ? rest[i + 1] : undefined;
+}
+
+function positionalArgs(rest: string[], valueFlags: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < rest.length; i++) {
+    if (valueFlags.includes(rest[i])) {
+      i++;
+    } else {
+      out.push(rest[i]);
+    }
+  }
+  return out;
+}
+
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
-  if (cmd === "--version" || cmd === "-v" || cmd === "version") {
+  if (cmd === "--version" || cmd === "-v") {
     console.log(VERSION);
     return;
   }
@@ -56,14 +51,35 @@ async function main(): Promise<void> {
     return;
   }
   if (cmd !== "scan") usage();
-  const target = rest.find((a) => !a.startsWith("--")) ?? ".";
+
+  // ---- Argument validation (before any file is read) ----
+  if (rest.some((a) => a.startsWith("--") && a !== "--markers")) usage();
+  const paths = positionalArgs(rest, ["--markers"]);
+  if (paths.length === 0) usage();
+  let markers: string[] | undefined;
+  if (rest.includes("--markers")) {
+    const raw = flag(rest, "--markers");
+    if (raw === undefined || !raw.trim()) usage();
+    markers = raw.split(",");
+  }
+
+  const files = paths.map((path) => {
+    try {
+      return { path, content: readFileSync(path, "utf8") };
+    } catch (err) {
+      console.error(
+        `error: cannot read file '${path}': ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  });
+
   try {
-    const report = runCheck(target);
-    const text = rest.includes("--json") ? JSON.stringify(report, null, 2) : renderReport(report);
-    await emit(text, report.verdict === CLEAN_VERDICT ? 0 : 1);
+    const out = scanTodos(files, markers);
+    console.log(formatPayload(out));
   } catch (err) {
     console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
-    process.exitCode = 2;
+    process.exit(1);
   }
 }
 

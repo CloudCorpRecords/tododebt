@@ -20,6 +20,6 @@ USER node
 ENTRYPOINT ["node", "/app/dist/cli.js"]
 CMD ["mcp"]
 LABEL org.opencontainers.image.source="https://github.com/CloudCorpRecords/tododebt" \
-      org.opencontainers.image.description="tododebt: TODO, FIXME, HACK, and XXX inventory for a repo: every marker with file, line, and text, aged by git blame when the repo has history, grouped by marker and by file so debt is a list with owners, not a vibe." \
+      org.opencontainers.image.description="tododebt: TODO/FIXME/HACK inventory across source files — every occurrence with file, line, and text, plus counts by marker and by file. One bin serves the CLI and a stdio MCP server." \
       org.opencontainers.image.licenses="MIT" \
       io.modelcontextprotocol.server.name="io.github.CloudCorpRecords/tododebt"
